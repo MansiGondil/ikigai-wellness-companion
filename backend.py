@@ -292,6 +292,16 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
     if any(k in text for k in medical):
         return "medical_ethics"
 
+    # 2b. Over-reliance on the AI for decisions / emotional support
+    ai_dependency = [
+        "tell me what to do", "just decide for me",
+        "you're the only one i talk to", "youre the only one i talk to",
+        "i can't decide without you", "i cant decide without you",
+        "what should i do with my life"
+    ]
+    if any(k in text for k in ai_dependency):
+        return "ai_dependency"
+
     # 3. If there's conversation history (follow-up detection)
     if history_length > 0:
         # Short responses in ongoing conversation
@@ -339,7 +349,8 @@ def get_hparams(intent: str) -> Dict:
         "injection_attempt": dict(temperature=0.1, top_p=0.5,  max_tokens=100, frequency_penalty=0.0, presence_penalty=0.0),
         "crisis":            dict(temperature=0.15, top_p=0.6,  max_tokens=200, frequency_penalty=0.1, presence_penalty=0.0),
         "medical_ethics":    dict(temperature=0.2,  top_p=0.7,  max_tokens=180, frequency_penalty=0.2, presence_penalty=0.0),
-        "mini_survey":       dict(temperature=0.35, top_p=0.9,  max_tokens=180, frequency_penalty=0.3, presence_penalty=0.1),
+        "ai_dependency":     dict(temperature=0.5,  top_p=0.9,  max_tokens=200, frequency_penalty=0.3, presence_penalty=0.2),
+        "mini_survey":      dict(temperature=0.35, top_p=0.9,  max_tokens=180, frequency_penalty=0.3, presence_penalty=0.1),
         "followup":          dict(temperature=0.7,  top_p=1.0,  max_tokens=240, frequency_penalty=0.3, presence_penalty=0.3),  # More natural
         "multimedia":        dict(temperature=0.5,  top_p=0.9,  max_tokens=220, frequency_penalty=0.2, presence_penalty=0.3),
         "cultural":          dict(temperature=0.6,  top_p=0.95, max_tokens=240, frequency_penalty=0.2, presence_penalty=0.4),
