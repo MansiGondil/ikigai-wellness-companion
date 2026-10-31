@@ -14,6 +14,7 @@ tests = [
     ("should I take a course of antibiotics", 0, "medical_ethics"),
     ("should I take the course on data science", 0, "empathy"),
     ("should I take the job or my pills", 0, "medical_ethics"),
+    ("I can't wait to kill this exam tomorrow", 0, "empathy"),
 ]
 
 for text, history_length, expected in tests:

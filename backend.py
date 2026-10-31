@@ -455,6 +455,18 @@ def safety_check_node(state: WellnessState) -> WellnessState:
 NO_RESOURCE_INTENTS = ["crisis", "medical_ethics", "injection_attempt", "ai_dependency"]
 HELPLINE_NUMBERS = ["988", "741741"]
 
+# Fixed, reviewed reply for crisis messages; sent as-is without calling the model
+CRISIS_REPLY = (
+    "I'm really sorry you're going through this, and I'm glad you said it out loud. "
+    "You don't have to face this alone.\n\n"
+    "If you might act on these thoughts or you're in immediate danger, please call your local emergency number right now.\n\n"
+    "In the US you can call or text 988 (Suicide & Crisis Lifeline) at any time, "
+    "or text HOME to 741741 (Crisis Text Line).\n\n"
+    "Outside the US, you can find a local helpline at findahelpline.com.\n\n"
+    "If you can, reach out to someone you trust and let them know how you're feeling right now, "
+    "so you're not alone with this."
+)
+
 
 def strip_link_paragraphs(text: str) -> str:
     """
@@ -474,6 +486,10 @@ def strip_link_paragraphs(text: str) -> str:
 
 
 def generate_response_node(state: WellnessState) -> WellnessState:
+    if state["intent"] == "crisis":
+        state["response"] = CRISIS_REPLY
+        return state
+
     hp = state["hparams"]
     llm = ChatOpenAI(
         **llm_connection_kwargs(),
@@ -503,7 +519,7 @@ def refine_response_node(state: WellnessState) -> WellnessState:
     state["iteration"] += 1
 
     # Skip refinement for conversational messages
-    if state["intent"] in ["conversational", "followup", "ai_dependency"]:
+    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"]:
         return state
 
     if len(state["response"].split()) > 40:
@@ -524,7 +540,7 @@ def refine_response_node(state: WellnessState) -> WellnessState:
 
 def should_refine(state: WellnessState) -> str:
     # Don't refine conversational messages
-    if state["intent"] in ["conversational", "followup", "ai_dependency"]:
+    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"]:
         return "end"
     
     if state["iteration"] > 1:
