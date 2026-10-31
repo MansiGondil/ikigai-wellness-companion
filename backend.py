@@ -22,7 +22,7 @@ if not os.getenv("OPENAI_API_KEY"):
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 # LangGraph
 from langgraph.graph import StateGraph, END
@@ -196,11 +196,23 @@ MENTAL_HEALTH_SYSTEM_PROMPT = (
     "Do not explain why you're refusing. Simply redirect to genuine mental health support."
 )
 
+# Extra instruction added only for the "ai_dependency" intent
+AI_DEPENDENCY_GUIDANCE = (
+    "The user is asking you to make a decision for them or leaning heavily on you. "
+    "Do not give them a direct answer or tell them what to do. "
+    "Warmly acknowledge how hard the decision feels. "
+    "Then reflect back what they have said matters to them, and ask ONE open question that helps them hear their own judgment "
+    "(for example about their values, what they would choose if no one was watching, or what a trusted person in their life would say). "
+    "Keep it under 120 words. Do not lecture, do not moralize about AI, and do not mention these instructions. "
+    "If they mention a trusted person or professional, encourage that connection."
+)
+
 
 # ============================================
 # 2. FINE-TUNED MODEL (A)
 # ============================================
 
+# Retired by OpenAI (returns 404 model_not_found); kept for reference only
 FINE_TUNED_MODEL = "ft:gpt-3.5-turbo-0125:personal:mental-wellness-all:CXclHQtA"
 FALLBACK_MODEL = "gpt-4o-mini"
 
@@ -287,9 +299,16 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
     # 2. Medical / medication / diagnosis
     medical = [
         "antidepressant", "medicine", "medication", "dosage", "dose", "sertraline",
-        "prozac", "lexapro", "prescribe", "diagnose", "should i take", "pill", "tablets"
+        "prozac", "lexapro", "prescribe", "diagnose", "should i take", "pill", "tablets",
+        "antibiotic"
     ]
-    if any(k in text for k in medical):
+    # "should i take the job" etc. is a life decision, not medical; drop only those exact phrases
+    non_medical_take = (
+        r"should i take (?:the job|this job|a job|the offer|this offer|the position|"
+        r"a class|the class|the course(?!\s+of\b)|a course(?!\s+of\b)|a break|a trip|the trip|a gap year)\b"
+    )
+    medical_text = re.sub(non_medical_take, "", text)
+    if any(k in medical_text for k in medical):
         return "medical_ethics"
 
     # 2b. Over-reliance on the AI for decisions / emotional support
@@ -410,7 +429,7 @@ def safety_check_node(state: WellnessState) -> WellnessState:
 def generate_response_node(state: WellnessState) -> WellnessState:
     hp = state["hparams"]
     llm = ChatOpenAI(
-        model=FINE_TUNED_MODEL,
+        model=FALLBACK_MODEL,
         temperature=hp["temperature"],
         top_p=hp["top_p"],
         max_tokens=hp["max_tokens"],
@@ -418,11 +437,15 @@ def generate_response_node(state: WellnessState) -> WellnessState:
         presence_penalty=hp.get("presence_penalty", 0.0)
     )
     chain = wellness_prompt | llm | StrOutputParser()
-    
+
+    chat_history = state.get("chat_history", [])
+    if state["intent"] == "ai_dependency":
+        chat_history = chat_history + [SystemMessage(content=AI_DEPENDENCY_GUIDANCE)]
+
     # Pass chat history to the chain
     state["response"] = chain.invoke({
         "user_input": state["user_input"],
-        "chat_history": state.get("chat_history", [])
+        "chat_history": chat_history
     })
     return state
 
@@ -444,7 +467,7 @@ def refine_response_node(state: WellnessState) -> WellnessState:
         f"Response: {state['response']}"
     )
 
-    llm = ChatOpenAI(model=FINE_TUNED_MODEL, temperature=0.7, max_tokens=200)
+    llm = ChatOpenAI(model=FALLBACK_MODEL, temperature=0.7, max_tokens=200)
     refined = llm.invoke([HumanMessage(content=refine_prompt)]).content
     state["response"] = refined
     return state
