@@ -217,6 +217,24 @@ FINE_TUNED_MODEL = "ft:gpt-3.5-turbo-0125:personal:mental-wellness-all:CXclHQtA"
 FALLBACK_MODEL = "gpt-4o-mini"
 
 
+def llm_connection_kwargs() -> Dict:
+    """
+    Model + provider settings for ChatOpenAI, read from env so any
+    OpenAI-compatible provider works. Falls back to OPENAI_API_KEY and
+    OpenAI's default endpoint when the LLM_* variables are not set.
+    """
+    kwargs = dict(
+        model=os.getenv("LLM_MODEL") or FALLBACK_MODEL,
+        base_url=os.getenv("LLM_BASE_URL") or None,
+        api_key=os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY"),
+    )
+    # Only for reasoning models (e.g. gpt-oss); non-reasoning models may reject it
+    reasoning_effort = os.getenv("LLM_REASONING_EFFORT")
+    if reasoning_effort:
+        kwargs["reasoning_effort"] = reasoning_effort
+    return kwargs
+
+
 # ============================================
 # 3. ENHANCED INTENT DETECTION
 # ============================================
@@ -365,16 +383,17 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
 
 def get_hparams(intent: str) -> Dict:
     mapping = {
-        "injection_attempt": dict(temperature=0.1, top_p=0.5,  max_tokens=100, frequency_penalty=0.0, presence_penalty=0.0),
-        "crisis":            dict(temperature=0.15, top_p=0.6,  max_tokens=200, frequency_penalty=0.1, presence_penalty=0.0),
-        "medical_ethics":    dict(temperature=0.2,  top_p=0.7,  max_tokens=180, frequency_penalty=0.2, presence_penalty=0.0),
-        "ai_dependency":     dict(temperature=0.5,  top_p=0.9,  max_tokens=200, frequency_penalty=0.3, presence_penalty=0.2),
-        "mini_survey":       dict(temperature=0.35, top_p=0.9,  max_tokens=180, frequency_penalty=0.3, presence_penalty=0.1),
-        "followup":          dict(temperature=0.7,  top_p=1.0,  max_tokens=240, frequency_penalty=0.3, presence_penalty=0.3),  # More natural
-        "multimedia":        dict(temperature=0.5,  top_p=0.9,  max_tokens=220, frequency_penalty=0.2, presence_penalty=0.3),
-        "cultural":          dict(temperature=0.6,  top_p=0.95, max_tokens=240, frequency_penalty=0.2, presence_penalty=0.4),
-        "conversational":    dict(temperature=0.8,  top_p=1.0,  max_tokens=240, frequency_penalty=0.4, presence_penalty=0.6),  # Higher temp
-        "empathy":           dict(temperature=0.6,  top_p=1.0,  max_tokens=220, frequency_penalty=0.3, presence_penalty=0.4),
+        # max_tokens includes hidden reasoning tokens on reasoning models; word limits live in the prompts
+        "injection_attempt": dict(temperature=0.1, top_p=0.5,  max_tokens=600, frequency_penalty=0.0, presence_penalty=0.0),
+        "crisis":            dict(temperature=0.15, top_p=0.6,  max_tokens=600, frequency_penalty=0.1, presence_penalty=0.0),
+        "medical_ethics":    dict(temperature=0.2,  top_p=0.7,  max_tokens=600, frequency_penalty=0.2, presence_penalty=0.0),
+        "ai_dependency":     dict(temperature=0.5,  top_p=0.9,  max_tokens=600, frequency_penalty=0.3, presence_penalty=0.2),
+        "mini_survey":       dict(temperature=0.35, top_p=0.9,  max_tokens=600, frequency_penalty=0.3, presence_penalty=0.1),
+        "followup":          dict(temperature=0.7,  top_p=1.0,  max_tokens=600, frequency_penalty=0.3, presence_penalty=0.3),  # More natural
+        "multimedia":        dict(temperature=0.5,  top_p=0.9,  max_tokens=600, frequency_penalty=0.2, presence_penalty=0.3),
+        "cultural":          dict(temperature=0.6,  top_p=0.95, max_tokens=600, frequency_penalty=0.2, presence_penalty=0.4),
+        "conversational":    dict(temperature=0.8,  top_p=1.0,  max_tokens=600, frequency_penalty=0.4, presence_penalty=0.6),  # Higher temp
+        "empathy":           dict(temperature=0.6,  top_p=1.0,  max_tokens=600, frequency_penalty=0.3, presence_penalty=0.4),
     }
     return mapping.get(intent, mapping["empathy"])
 
@@ -429,7 +448,7 @@ def safety_check_node(state: WellnessState) -> WellnessState:
 def generate_response_node(state: WellnessState) -> WellnessState:
     hp = state["hparams"]
     llm = ChatOpenAI(
-        model=FALLBACK_MODEL,
+        **llm_connection_kwargs(),
         temperature=hp["temperature"],
         top_p=hp["top_p"],
         max_tokens=hp["max_tokens"],
@@ -467,7 +486,7 @@ def refine_response_node(state: WellnessState) -> WellnessState:
         f"Response: {state['response']}"
     )
 
-    llm = ChatOpenAI(model=FALLBACK_MODEL, temperature=0.7, max_tokens=200)
+    llm = ChatOpenAI(**llm_connection_kwargs(), temperature=0.7, max_tokens=600)
     refined = llm.invoke([HumanMessage(content=refine_prompt)]).content
     state["response"] = refined
     return state
