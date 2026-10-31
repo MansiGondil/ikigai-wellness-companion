@@ -350,7 +350,7 @@ def get_hparams(intent: str) -> Dict:
         "crisis":            dict(temperature=0.15, top_p=0.6,  max_tokens=200, frequency_penalty=0.1, presence_penalty=0.0),
         "medical_ethics":    dict(temperature=0.2,  top_p=0.7,  max_tokens=180, frequency_penalty=0.2, presence_penalty=0.0),
         "ai_dependency":     dict(temperature=0.5,  top_p=0.9,  max_tokens=200, frequency_penalty=0.3, presence_penalty=0.2),
-        "mini_survey":      dict(temperature=0.35, top_p=0.9,  max_tokens=180, frequency_penalty=0.3, presence_penalty=0.1),
+        "mini_survey":       dict(temperature=0.35, top_p=0.9,  max_tokens=180, frequency_penalty=0.3, presence_penalty=0.1),
         "followup":          dict(temperature=0.7,  top_p=1.0,  max_tokens=240, frequency_penalty=0.3, presence_penalty=0.3),  # More natural
         "multimedia":        dict(temperature=0.5,  top_p=0.9,  max_tokens=220, frequency_penalty=0.2, presence_penalty=0.3),
         "cultural":          dict(temperature=0.6,  top_p=0.95, max_tokens=240, frequency_penalty=0.2, presence_penalty=0.4),
