@@ -4,34 +4,55 @@
 
 An AI-powered mental wellness and self-discovery companion that supports emotional well-being, self-awareness, resilience, and independent decision-making.
 
-> Originally built as a group project for INFO 7375 (Prompt Engineering for Generative AI) at Northeastern University. This version is my independent redesign and extension.
+## The idea
+
+Ikigai is inspired by *svadharma*: the idea of living by your own nature and path instead of imitating someone else's. Different people need different things on different days, so Ikigai is built around two ways of helping:
+
+- **Support** is for when you want comfort and coping tools right now.
+- **Reflect** is for when you want to hear your own voice again. Instead of telling you what to do, it listens, reflects back what matters to you, and asks one open question.
+
+Reflect behavior currently switches on automatically when someone asks the AI to decide for them or leans on it heavily. A manual toggle is planned.
 
 ## What it does today
 
-- Chat interface (Streamlit) for venting and getting supportive guidance
-- LangGraph workflow: intent detection, safety check, intent-based generation settings
-- Fine-tuned GPT-3.5-turbo model for empathetic, boundary-aware responses
-- Crisis detection with helpline information
-- Prompt-injection defenses and input sanitization
-- Optional mood survey and mood history
+- Streamlit chat app with optional mood survey and mood history
+- LangGraph workflow: intent detection, safety checks, and intent-specific generation settings
+- Reflective replies for decision-delegation messages: no direct answers, no resource links, one open question
+- Fixed, reviewed crisis reply with 988 and Crisis Text Line (741741) that never depends on a model call
+- Medical-boundary handling: no diagnosis or medication advice, redirects to professionals
+- Prompt-injection and obfuscation defenses
+- Optional single resource suggestion, only when it helps
+- Automated tests for intent routing and safety cases
 
-## Where it's going
+## Model setup
 
-Ikigai is being redesigned around one idea: the AI should strengthen a person's own judgment, not replace it.
-
-- [ ] Detect over-reliance and external pressure, and respond by reflecting choices back to the user
-- [ ] Graduation behavior: help conversations wind down as the user finds clarity
-- [ ] Privacy-preserving "autonomy" view that tracks growth without storing raw conversations
+The chat model is configurable through environment variables and works with any OpenAI-compatible provider, so it isn't tied to one model that might be retired. See `.env.example`.
 
 ## Run it locally
 
 1. Install dependencies:
    `pip install streamlit langchain-core langchain-openai langgraph openai python-dotenv`
-2. Create a `.env` file in the project folder:
-   `OPENAI_API_KEY=your_key_here`
+2. Copy `.env.example` to `.env` and fill in your own keys. Never commit `.env`.
 3. Start the app:
    `streamlit run app.py`
+4. Run the tests:
+   `python test_intent.py`
 
-## Disclaimer
+## Roadmap
 
-Ikigai is not a therapist and not a substitute for professional care. If you are in crisis, call or text 988 (US).
+- [x] Reflective handling for over-reliance and decision-delegation
+- [x] Hard-coded crisis response
+- [ ] Support / Reflect mode toggle in the app
+- [ ] End-of-conversation reflection note
+- [ ] Broader crisis detection beyond keywords
+- [ ] Wind-down behavior as a user finds clarity
+- [ ] Fine-tuning experiment on an open model, with a before/after evaluation
+- [ ] Public demo link
+
+## Privacy and limits
+
+Ikigai is not a therapist and not a substitute for professional care or crisis services. It is for adults. If you are in crisis, call or text 988 (US) or visit findahelpline.com for other countries. When a hosted model provider is used, messages are sent to that provider under its terms.
+
+## Background
+
+Originally built as a group project for INFO 7375 (Prompt Engineering for Generative AI) at Northeastern University. This version is my independent redesign and extension.
