@@ -15,14 +15,14 @@ Reflect behavior currently switches on automatically when someone asks the AI to
 
 ## What it does today
 
-- Streamlit chat app with optional mood survey and mood history
+- Streamlit chat app with an optional mood survey
 - LangGraph workflow: intent detection, safety checks, and intent-specific generation settings
 - Reflective replies for decision-delegation messages: no direct answers, no resource links, one open question
 - Fixed, reviewed crisis reply with 988 and Crisis Text Line (741741) that never depends on a model call
 - Medical-boundary handling: no diagnosis or medication advice, redirects to professionals
 - Prompt-injection and obfuscation defenses
 - Optional single resource suggestion, only when it helps
-- Automated tests for intent routing and safety cases
+- Automated tests for intent routing, including safety cases
 
 ## Model setup
 
