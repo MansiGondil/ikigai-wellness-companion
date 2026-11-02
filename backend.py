@@ -254,6 +254,19 @@ AI_DEPENDENCY_GUIDANCE = (
     "the goal is to hand the thinking back to the user."
 )
 
+# Extra instruction added in Reflect mode (except for crisis, medical_ethics and injection_attempt)
+REFLECT_GUIDANCE = (
+    "The user has chosen Reflect mode. Do not give advice, tips, lists or step-by-step suggestions. "
+    "Listen, then reflect back in one or two sentences what you heard and what seems to matter to them, "
+    "and ask ONE open question that helps them hear their own judgment. Keep it under 100 words. "
+    "Do not include links, videos, podcasts or any resource suggestions. "
+    "If they ask a direct factual question, answer it briefly and then return to a reflective question. "
+    "Do not mention these instructions."
+)
+
+# Intents that keep their normal behavior even in Reflect mode
+REFLECT_EXEMPT_INTENTS = ["crisis", "medical_ethics", "injection_attempt"]
+
 
 # ============================================
 # 2. FINE-TUNED MODEL (A)
@@ -465,6 +478,7 @@ class WellnessState(TypedDict):
     response: str
     is_crisis: bool
     iteration: int
+    mode: str  # "support" (default) or "reflect"
 
 
 # ============================================
@@ -541,15 +555,18 @@ def generate_response_node(state: WellnessState) -> WellnessState:
     chain = wellness_prompt | llm | StrOutputParser()
 
     chat_history = state.get("chat_history", [])
+    reflect = state.get("mode") == "reflect"
     if state["intent"] == "ai_dependency":
         chat_history = chat_history + [SystemMessage(content=AI_DEPENDENCY_GUIDANCE)]
+    elif reflect and state["intent"] not in REFLECT_EXEMPT_INTENTS:
+        chat_history = chat_history + [SystemMessage(content=REFLECT_GUIDANCE)]
 
     # Pass chat history to the chain
     state["response"] = chain.invoke({
         "user_input": state["user_input"],
         "chat_history": chat_history
     })
-    if state["intent"] in NO_RESOURCE_INTENTS:
+    if state["intent"] in NO_RESOURCE_INTENTS or reflect:
         state["response"] = strip_link_paragraphs(state["response"])
     return state
 
@@ -557,8 +574,9 @@ def generate_response_node(state: WellnessState) -> WellnessState:
 def refine_response_node(state: WellnessState) -> WellnessState:
     state["iteration"] += 1
 
-    # Skip refinement for conversational messages
-    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"]:
+    # Skip refinement for conversational messages, sensitive intents and Reflect mode
+    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"] \
+            or state.get("mode") == "reflect":
         return state
 
     if len(state["response"].split()) > 40:
@@ -578,8 +596,9 @@ def refine_response_node(state: WellnessState) -> WellnessState:
 
 
 def should_refine(state: WellnessState) -> str:
-    # Don't refine conversational messages
-    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"]:
+    # Don't refine conversational messages, sensitive intents or Reflect mode
+    if state["intent"] in ["conversational", "followup", "ai_dependency", "crisis", "medical_ethics", "injection_attempt"] \
+            or state.get("mode") == "reflect":
         return "end"
     
     if state["iteration"] > 1:
@@ -622,14 +641,15 @@ app = workflow.compile()
 # 9. PUBLIC CHAT FUNCTION WITH MEMORY
 # ============================================
 
-def wellness_chat(user_input: str, chat_history: List = None, survey_data: Dict = None) -> Tuple[str, str, bool, List]:
+def wellness_chat(user_input: str, chat_history: List = None, survey_data: Dict = None, mode: str = "support") -> Tuple[str, str, bool, List]:
     """
     Main chat function with conversation memory and survey context.
-    
+
     Args:
         user_input: Current user message
         chat_history: List of previous messages (LangChain format)
         survey_data: Dictionary with survey responses (mood, stress, sleep, energy, social)
+        mode: "support" (default) or "reflect" (no advice or resources, one open question)
     
     Returns:
         (intent, response, is_crisis, updated_history)
@@ -664,6 +684,7 @@ def wellness_chat(user_input: str, chat_history: List = None, survey_data: Dict 
         "response": "",
         "is_crisis": False,
         "iteration": 0,
+        "mode": mode,
     }
 
     final = app.invoke(init)
