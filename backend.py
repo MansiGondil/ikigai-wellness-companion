@@ -38,6 +38,28 @@ client = OpenAI(
 
 
 # ============================================
+# CRISIS PHRASES - shared by detect_intent() and safety_check_node()
+# ============================================
+
+# Matched against lowercased text with curly quotes normalized (see normalize_quotes)
+CRISIS_PHRASES = [
+    "suicide", "kill myself", "end it all", "self harm", "self-harm",
+    "hurt myself", "hurt someone", "end my life", "i don't want to live",
+    "want to die", "wanna die", "wish i was dead", "wish i were dead", "wish i wasn't alive",
+    "better off dead", "better off without me", "no reason to live", "no point in living",
+    "don't see the point anymore", "don't see the point of anything", "see no point in going on",
+    "don't want to be here anymore", "don't want to wake up", "can't go on", "want to disappear",
+    "end my own life", "take my own life", "do not want to live", "dont want to live",
+    "everything hurts too much",
+]
+
+
+def normalize_quotes(text: str) -> str:
+    """Turns curly apostrophes (’ ‘) into straight ones so phrase matching works."""
+    return text.replace("’", "'").replace("‘", "'")
+
+
+# ============================================
 # INPUT SANITIZER - Defense against obfuscation
 # ============================================
 
@@ -248,9 +270,14 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
     """
     Enhanced intent detection that considers conversation history
     """
-    text = user_input.lower()
-    
-    # Check for multi-turn payload splitting attacks FIRST
+    text = normalize_quotes(user_input.lower())
+
+    # Crisis / self-harm / harm-to-others runs FIRST, before any injection check,
+    # so a crisis message that happens to contain an injection keyword still gets crisis support
+    if any(k in text for k in CRISIS_PHRASES):
+        return "crisis"
+
+    # Check for multi-turn payload splitting attacks
     if detect_payload_splitting(user_input):
         return "injection_attempt"
     
@@ -310,14 +337,6 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
     for pattern in suspicious_patterns:
         if re.search(pattern, text):
             return "injection_attempt"
-
-    # 1. Crisis / self-harm / harm-to-others (ALWAYS PRIORITY)
-    crisis = [
-        "suicide", "kill myself", "end it all", "self harm", "self-harm",
-        "hurt myself", "hurt someone", "end my life", "i don't want to live"
-    ]
-    if any(k in text for k in crisis):
-        return "crisis"
 
     # 2. Medical / medication / diagnosis
     medical = [
@@ -445,8 +464,8 @@ def assign_params_node(state: WellnessState) -> WellnessState:
 
 
 def safety_check_node(state: WellnessState) -> WellnessState:
-    crisis_terms = ["suicide", "kill myself", "end my life", "hurt myself", "self harm"]
-    state["is_crisis"] = any(k in state["user_input"].lower() for k in crisis_terms)
+    text = normalize_quotes(state["user_input"].lower())
+    state["is_crisis"] = any(k in text for k in CRISIS_PHRASES)
     return state
 
 
