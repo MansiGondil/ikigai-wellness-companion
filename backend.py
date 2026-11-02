@@ -257,8 +257,12 @@ AI_DEPENDENCY_GUIDANCE = (
 # Extra instruction added in Reflect mode (except for crisis, medical_ethics and injection_attempt)
 REFLECT_GUIDANCE = (
     "The user has chosen Reflect mode. Do not give advice, tips, lists or step-by-step suggestions. "
-    "Listen, then reflect back in one or two sentences what you heard and what seems to matter to them, "
-    "and ask ONE open question that helps them hear their own judgment. Keep it under 100 words. "
+    "Write your reply in three parts: "
+    "(1) one short, warm sentence that acknowledges the feeling they expressed (for example that it sounds heavy, frustrating or lonely), "
+    "without exaggerating it or diagnosing them; "
+    "(2) one sentence reflecting what seems to matter to them; "
+    "(3) ONE open question that helps them hear their own judgment, starting with \"what\" or \"how\", never \"why\". "
+    "Keep it under 100 words. "
     "Do not include links, videos, podcasts or any resource suggestions. "
     "If they ask a direct factual question, answer it briefly and then return to a reflective question. "
     "Do not mention these instructions."
