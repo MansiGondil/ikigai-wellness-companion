@@ -44,7 +44,7 @@ client = OpenAI(
 # Matched against lowercased text with curly quotes normalized (see normalize_quotes)
 CRISIS_PHRASES = [
     "suicide", "kill myself", "end it all", "self harm", "self-harm",
-    "hurt myself", "hurt someone", "end my life", "i don't want to live",
+    "hurt myself", "end my life", "i don't want to live",
     "want to die", "wanna die", "wish i was dead", "wish i were dead", "wish i wasn't alive",
     "better off dead", "better off without me", "no reason to live", "no point in living",
     "don't see the point anymore", "don't see the point of anything", "see no point in going on",
@@ -54,9 +54,29 @@ CRISIS_PHRASES = [
 ]
 
 
+# Harm-to-others phrases. Matched as whole words and NOT when followed by an
+# apostrophe, so "hurt someone's feelings" does not count (see is_crisis_text)
+HARM_TO_OTHERS_PHRASES = [
+    "want to hurt someone", "going to hurt someone", "gonna hurt someone",
+    "want to kill someone", "going to kill someone", "gonna kill someone",
+]
+
+
 def normalize_quotes(text: str) -> str:
     """Turns curly apostrophes (’ ‘) into straight ones so phrase matching works."""
     return text.replace("’", "'").replace("‘", "'")
+
+
+def is_crisis_text(text: str) -> bool:
+    """True if lowercased, quote-normalized text matches a crisis or harm-to-others phrase."""
+    import re
+
+    if any(k in text for k in CRISIS_PHRASES):
+        return True
+    return any(
+        re.search(rf"\b{re.escape(p)}\b(?!')", text)
+        for p in HARM_TO_OTHERS_PHRASES
+    )
 
 
 # ============================================
@@ -274,7 +294,7 @@ def detect_intent(user_input: str, history_length: int = 0) -> str:
 
     # Crisis / self-harm / harm-to-others runs FIRST, before any injection check,
     # so a crisis message that happens to contain an injection keyword still gets crisis support
-    if any(k in text for k in CRISIS_PHRASES):
+    if is_crisis_text(text):
         return "crisis"
 
     # Check for multi-turn payload splitting attacks
@@ -465,7 +485,7 @@ def assign_params_node(state: WellnessState) -> WellnessState:
 
 def safety_check_node(state: WellnessState) -> WellnessState:
     text = normalize_quotes(state["user_input"].lower())
-    state["is_crisis"] = any(k in text for k in CRISIS_PHRASES)
+    state["is_crisis"] = is_crisis_text(text)
     return state
 
 
