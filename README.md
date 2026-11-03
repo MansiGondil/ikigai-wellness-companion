@@ -11,7 +11,7 @@ Ikigai is inspired by *svadharma*: the idea of living by your own nature and pat
 - **Support** is for when you want comfort and coping tools right now.
 - **Reflect** is for when you want to hear your own voice again. Instead of telling you what to do, it listens, reflects back what matters to you, and asks one open question.
 
-Reflect behavior currently switches on automatically when someone asks the AI to decide for them or leans on it heavily. A manual toggle is planned.
+Use the slider on the page to switch between the two. Reflect also switches on by itself when someone asks the AI to decide for them.
 
 ## What it does today
 
