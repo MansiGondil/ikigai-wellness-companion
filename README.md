@@ -15,7 +15,7 @@ Reflect behavior currently switches on automatically when someone asks the AI to
 
 ## What it does today
 
-- Streamlit chat app with an optional mood survey
+- Streamlit chat app with a Support / Reflect mode switch
 - LangGraph workflow: intent detection, safety checks, and intent-specific generation settings
 - Reflective replies for decision-delegation messages: no direct answers, no resource links, one open question
 - Fixed, reviewed crisis reply with 988 and Crisis Text Line (741741) that never depends on a model call
@@ -42,7 +42,7 @@ The chat model is configurable through environment variables and works with any 
 
 - [x] Reflective handling for over-reliance and decision-delegation
 - [x] Hard-coded crisis response
-- [ ] Support / Reflect mode toggle in the app
+- [x] Support / Reflect mode toggle in the app
 - [ ] End-of-conversation reflection note
 - [ ] Broader crisis detection beyond keywords
 - [ ] Wind-down behavior as a user finds clarity

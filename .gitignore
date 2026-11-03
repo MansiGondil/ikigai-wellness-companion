@@ -4,3 +4,4 @@ __pycache__/
 generated_memes/
 CLAUDE.md
 .claude/
+.streamlit/secrets.toml
