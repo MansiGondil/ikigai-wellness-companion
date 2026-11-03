@@ -4,6 +4,10 @@
 
 An AI-powered mental wellness and self-discovery companion that supports emotional well-being, self-awareness, resilience, and independent decision-making.
 
+**Live demo:** https://ikigai-wellness-companion.streamlit.app
+
+*The demo runs on a free hosted tier, so it may take a moment to wake up if no one has visited in a while.*
+
 ## The idea
 
 Ikigai is inspired by *svadharma*: the idea of living by your own nature and path instead of imitating someone else's. Different people need different things on different days, so Ikigai is built around two ways of helping:
@@ -47,7 +51,7 @@ The chat model is configurable through environment variables and works with any 
 - [ ] Broader crisis detection beyond keywords
 - [ ] Wind-down behavior as a user finds clarity
 - [ ] Fine-tuning experiment on an open model, with a before/after evaluation
-- [ ] Public demo link
+- [x] Public demo link
 
 ## Privacy and limits
 
