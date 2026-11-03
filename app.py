@@ -1,7 +1,27 @@
 from pathlib import Path
 
+import logging
+
 import streamlit as st
-from backend import wellness_chat, reset_attack_memory
+from backend import (
+    wellness_chat, reset_attack_memory, get_setting,
+    is_crisis_text, normalize_quotes, CRISIS_REPLY,
+)
+
+# Friendly fallbacks: users never see raw errors
+CONNECTION_TROUBLE = "I'm having trouble connecting right now. Please try again in a minute."
+LIMIT_NOTE = "That's the limit for this session. Thanks for spending time here."
+
+
+def _max_messages():
+    """Soft cap on user messages per browser session (setting MAX_MESSAGES, default 25)."""
+    try:
+        return max(1, int(get_setting("MAX_MESSAGES", 25)))
+    except (TypeError, ValueError):
+        return 25
+
+
+MAX_MESSAGES = _max_messages()
 
 # ================================
 # 🌿 Page Configuration
@@ -766,6 +786,10 @@ if "chat_history" not in st.session_state:
 if "last_intent" not in st.session_state:
     st.session_state.last_intent = None
 
+# User messages sent in this browser session; "New conversation" does not reset it
+if "user_message_count" not in st.session_state:
+    st.session_state.user_message_count = 0
+
 # Flag to clear the input textbox safely (set before widget creation)
 if "clear_input" not in st.session_state:
     st.session_state.clear_input = False
@@ -957,10 +981,15 @@ with st.container(key="center_panel"):
         label_visibility="collapsed"
     )
 
+    # Soft per-session cap: after MAX_MESSAGES, a kind note and Send is disabled
+    limit_reached = st.session_state.user_message_count >= MAX_MESSAGES
+    if limit_reached:
+        st.markdown(f'<p class="ik-empty-chat">{LIMIT_NOTE}</p>', unsafe_allow_html=True)
+
     # Button row: Send on the left, "New conversation" on the right, both 168 x 44 px
     with st.container(key="button_row", horizontal=True, horizontal_alignment="distribute",
                       vertical_alignment="center", wrap=False):
-        send_button = st.button("Send", type="primary", key="send_button", width=168)
+        send_button = st.button("Send", type="primary", key="send_button", width=168, disabled=limit_reached)
         if st.button("New conversation", key="new_conversation", width=168):
             st.session_state.messages = []
             st.session_state.chat_history = []
@@ -969,19 +998,31 @@ with st.container(key="center_panel"):
             st.rerun()
 
     # ---------- Handle Send ----------
-    if send_button and user_input.strip():
+    if send_button and user_input.strip() and not limit_reached:
 
         # Add user message to UI chat
         st.session_state.messages.append((user_input, "user"))
+        st.session_state.user_message_count += 1
 
         # Get bot response WITH CONVERSATION HISTORY (no survey data)
         with st.spinner("Responding with care..."):
-            intent, reply, crisis, updated_history = wellness_chat(
-                user_input,
-                st.session_state.chat_history,
-                survey_data=None,
-                mode=help_mode.lower()
-            )
+            try:
+                intent, reply, crisis, updated_history = wellness_chat(
+                    user_input,
+                    st.session_state.chat_history,
+                    survey_data=None,
+                    mode=help_mode.lower()
+                )
+            except Exception as error:
+                # Rate limit, bad key, timeout...: log only the error type (never the message, which
+                # could include part of a key), and show a gentle reply instead of a stack trace
+                logging.getLogger("ikigai").warning("wellness_chat failed: %s", type(error).__name__)
+                updated_history = st.session_state.chat_history     # keep the history unchanged
+                if is_crisis_text(normalize_quotes(user_input.lower())):
+                    # Crisis support never depends on the model being reachable
+                    intent, reply, crisis = "crisis", CRISIS_REPLY, True
+                else:
+                    intent, reply, crisis = "unavailable", CONNECTION_TROUBLE, False
 
         # Update the LangChain chat history
         st.session_state.chat_history = updated_history

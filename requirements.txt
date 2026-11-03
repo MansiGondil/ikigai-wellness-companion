@@ -1,0 +1,7 @@
+# Packages imported by app.py and backend.py, pinned to the versions tested locally (Python 3.13.7)
+streamlit==1.66.1
+langchain-core==1.5.4
+langchain-openai==1.0.3
+langgraph==1.0.3
+openai==2.8.1
+python-dotenv==1.2.1

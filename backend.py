@@ -14,9 +14,26 @@ from dotenv import load_dotenv
 # Load environment FIRST
 load_dotenv()
 
-# Validate env variables
-if not os.getenv("OPENAI_API_KEY"):
-    raise RuntimeError("Missing OPENAI_API_KEY in .env file")
+
+def get_setting(name: str, default=None):
+    """
+    Reads a setting from the environment (.env locally) and, if it is not there,
+    from Streamlit's secrets (used on Streamlit Community Cloud).
+    """
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        import streamlit as st
+        value = st.secrets.get(name)
+    except Exception:          # streamlit not installed, or no secrets file
+        value = None
+    return value if value else default
+
+
+# Validate settings: one chat key is enough (a Groq key on its own works)
+if not (get_setting("LLM_API_KEY") or get_setting("OPENAI_API_KEY")):
+    raise RuntimeError("Missing LLM_API_KEY (or OPENAI_API_KEY) in .env or Streamlit secrets")
 
 # LangChain
 from langchain_openai import ChatOpenAI
@@ -30,11 +47,12 @@ from langgraph.graph import StateGraph, END
 # DALL·E / Image API
 from openai import OpenAI
 
-# Initialize OpenAI client AFTER env is loaded
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    organization=os.getenv("OPENAI_ORG")
-)
+def _image_client():
+    """OpenAI client for meme images, created only when an image is requested (needs OPENAI_API_KEY)."""
+    return OpenAI(
+        api_key=get_setting("OPENAI_API_KEY"),
+        organization=get_setting("OPENAI_ORG")
+    )
 
 
 # ============================================
@@ -288,12 +306,12 @@ def llm_connection_kwargs() -> Dict:
     OpenAI's default endpoint when the LLM_* variables are not set.
     """
     kwargs = dict(
-        model=os.getenv("LLM_MODEL") or FALLBACK_MODEL,
-        base_url=os.getenv("LLM_BASE_URL") or None,
-        api_key=os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY"),
+        model=get_setting("LLM_MODEL", FALLBACK_MODEL),
+        base_url=get_setting("LLM_BASE_URL"),
+        api_key=get_setting("LLM_API_KEY") or get_setting("OPENAI_API_KEY"),
     )
     # Only for reasoning models (e.g. gpt-oss); non-reasoning models may reject it
-    reasoning_effort = os.getenv("LLM_REASONING_EFFORT")
+    reasoning_effort = get_setting("LLM_REASONING_EFFORT")
     if reasoning_effort:
         kwargs["reasoning_effort"] = reasoning_effort
     return kwargs
@@ -721,7 +739,7 @@ def generate_meme_image(prompt: str, size: str = "1024x1024") -> str:
         if size not in ["1024x1024", "1024x1536", "1536x1024", "auto"]:
             size = "1024x1024"
 
-        response = client.images.generate(
+        response = _image_client().images.generate(
             model="gpt-image-1",
             prompt=dalle_prompt,
             size=size,  
